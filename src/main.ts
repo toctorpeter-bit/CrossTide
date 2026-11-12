@@ -334,6 +334,7 @@ function main(): void {
       },
       undefined,
       config.methodWeights,
+      config.mtfTimeframes,
     );
 
     tickerDataCache = results;
@@ -618,7 +619,13 @@ function main(): void {
     refreshWatchlist(config, new Map());
     showToast({ message: `Added ${t} — fetching data…`, type: "success" });
     maybeRequestPersist();
-    void fetchTickerData(t).then((data) => {
+    void fetchTickerData(
+      t,
+      undefined,
+      config.methodWeights,
+      undefined,
+      config.mtfTimeframes,
+    ).then((data) => {
       tickerDataCache.set(t, data);
       tickerDataStore.set(new Map(tickerDataCache));
       void refreshData();

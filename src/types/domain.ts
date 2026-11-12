@@ -32,6 +32,7 @@ export type MethodName =
   | "WilliamsR"
   | "MFI"
   | "SuperTrend"
+  | "MTFConfluence"
   | "Consensus";
 
 /** A signal emitted by a single trading method detector. */
@@ -86,10 +87,20 @@ export type InstrumentType = "stock" | "etf" | "crypto" | "other";
 /** User-facing config. */
 export type MethodWeights = Partial<Record<MethodName, number>>;
 
+/** Supported intervals for the three configurable MTF confluence series. */
+export const MTF_INTERVALS = ["1m", "5m", "15m", "1h", "4h", "1d", "1w", "1mo"] as const;
+/** One supported interval for MTF confluence. */
+export type MtfInterval = (typeof MTF_INTERVALS)[number];
+/** The ordered selection of three MTF confluence intervals. */
+export type MtfTimeframes = readonly [MtfInterval, MtfInterval, MtfInterval];
+
+/** Default MTF configuration, retained for users without saved preferences. */
+export const DEFAULT_MTF_TIMEFRAMES: MtfTimeframes = ["15m", "1h", "4h"];
+
 /**
  * Default per-method consensus weights.
- * Micho retains its anchor role (3×); all other methods default to 1×.
- * A value of 0 disables the method from the consensus tally.
+ * Micho retains its anchor role (3×); core methods default to 1×.
+ * MTFConfluence is opt-in (0×); a value of 0 disables a method.
  */
 export const DEFAULT_METHOD_WEIGHTS: Readonly<MethodWeights> = {
   Micho: 3,
@@ -104,14 +115,17 @@ export const DEFAULT_METHOD_WEIGHTS: Readonly<MethodWeights> = {
   WilliamsR: 1,
   MFI: 1,
   SuperTrend: 1,
+  MTFConfluence: 0,
 } as const;
 
 /** User-facing config. */
 export interface AppConfig {
   readonly theme: "dark" | "light" | "high-contrast";
   readonly watchlist: readonly WatchlistEntry[];
-  /** Per-method consensus weights (0 = disabled, 3 = triple-weighted, default 1). */
+  /** Per-method consensus weights (0 = disabled, 3 = triple-weighted). */
   readonly methodWeights?: MethodWeights;
+  /** Three intervals used by the optional MTF confluence consensus method. */
+  readonly mtfTimeframes?: MtfTimeframes;
   /** Per-card isolated settings namespace (G24). */
   readonly cardSettings?: CardSettingsMap;
   /** Auto-refresh interval in milliseconds (default 300000 = 5 min). */

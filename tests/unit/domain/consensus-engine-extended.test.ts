@@ -18,6 +18,7 @@ const ALL_METHODS: MethodName[] = [
   "WilliamsR",
   "MFI",
   "SuperTrend",
+  "MTFConfluence",
 ];
 
 function sig(method: MethodName, direction: "BUY" | "SELL" | "NEUTRAL"): MethodSignal {
@@ -32,14 +33,14 @@ function sig(method: MethodName, direction: "BUY" | "SELL" | "NEUTRAL"): MethodS
 }
 
 describe("consensus-engine extended", () => {
-  it("strength is 1.0 when all 12 methods BUY", () => {
+  it("strength is 1.0 when all methods BUY", () => {
     const signals = ALL_METHODS.map((m) => sig(m, "BUY"));
     const result = evaluateConsensus("AAPL", signals);
     expect(result.direction).toBe("BUY");
     expect(result.strength).toBe(1);
   });
 
-  it("strength is 1.0 when all 12 methods SELL", () => {
+  it("strength is 1.0 when all methods SELL", () => {
     const signals = ALL_METHODS.map((m) => sig(m, "SELL"));
     const result = evaluateConsensus("AAPL", signals);
     expect(result.direction).toBe("SELL");

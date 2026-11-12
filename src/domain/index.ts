@@ -25,7 +25,7 @@ export type { MacdPoint } from "./macd-calculator";
 
 // ── Consensus & signals ──────────────────────────────────────────────────
 
-/** 12-method consensus signal engine. */
+/** 12-core-method consensus engine with optional multi-timeframe confluence. */
 export { evaluateConsensus } from "./consensus-engine";
 /** Bullish/bearish cross-up detection. */
 export { detectCrossUp } from "./cross-up-detector";
@@ -95,6 +95,11 @@ export { evaluate as evaluateMfi } from "./mfi-method";
 export { evaluate as evaluateSuperTrend } from "./supertrend-method";
 /** Multi-method signal aggregation. */
 export { aggregateSignals, aggregateConsensus } from "./signal-aggregator";
+export { evaluateMtfConfluence } from "./mtf-confluence-method";
+export type {
+  MultiTimeframeCandles,
+  TimeframeCandles,
+} from "./mtf-confluence-method";
 
 // ── Alerts ───────────────────────────────────────────────────────────────
 

@@ -1,8 +1,19 @@
 /**
  * Settings card — renders settings panel and binds change handlers.
  */
-import type { AppConfig, CardId, CardSettingsMap, MethodWeights } from "../types/domain";
-import { DEFAULT_METHOD_WEIGHTS } from "../types/domain";
+import type {
+  AppConfig,
+  CardId,
+  CardSettingsMap,
+  MethodWeights,
+  MtfInterval,
+  MtfTimeframes,
+} from "../types/domain";
+import {
+  DEFAULT_METHOD_WEIGHTS,
+  DEFAULT_MTF_TIMEFRAMES,
+  MTF_INTERVALS,
+} from "../types/domain";
 import { FINNHUB_KEY_STORAGE } from "../core/finnhub-stream-manager";
 import { isEnhancedContrast, setEnhancedContrast } from "../core/contrast-preference";
 import { isTelemetryOptedOut, setTelemetryOptOut } from "../core/telemetry-preference";
@@ -36,6 +47,7 @@ const METHOD_NAMES = [
   "WilliamsR",
   "MFI",
   "SuperTrend",
+  "MTFConfluence",
 ] as const;
 
 export interface SettingsCallbacks {
@@ -58,6 +70,8 @@ export interface SettingsCallbacks {
   onFinnhubKeyChange?: (apiKey: string | null) => void;
   /** Called when user changes per-method consensus weights (G20). */
   onMethodWeightsChange?: (weights: MethodWeights) => void;
+  /** Called when user changes the three MTF confluence intervals. */
+  onMtfTimeframesChange?: (timeframes: MtfTimeframes) => void;
   /** Called when user changes selected card settings (G24). */
   onCardSettingsChange?: <K extends CardId>(
     cardId: K,
@@ -194,9 +208,10 @@ export function renderSettings(
     </div>
     <div class="setting-group">
       <label>About</label>
-      <span class="text-secondary">CrossTide — 12-method consensus engine</span>
+      <span class="text-secondary">CrossTide — 12 core methods with optional MTFConfluence</span>
     </div>
     ${renderWeightsSection(config.methodWeights)}
+    ${renderMtfTimeframeSection(config.mtfTimeframes)}
     <div class="setting-group">
       <label for="card-settings-picker">Card Settings</label>
       <select id="card-settings-picker" data-action="card-picker-change">
@@ -265,6 +280,10 @@ export function renderSettings(
       import: () => callbacks.onImport(),
       "clear-watchlist": () => callbacks.onClearWatchlist(),
       "clear-cache": () => callbacks.onClearCache(),
+      "mtf-timeframe-change": () => {
+        const timeframes = readMtfTimeframes(container);
+        if (timeframes) callbacks.onMtfTimeframesChange?.(timeframes);
+      },
       "palette-change": () => {
         if (paletteSelect) {
           callbacks.onPaletteChange?.(paletteSelect.value as ReturnType<typeof getActivePalette>);
@@ -540,6 +559,52 @@ function renderWeightsSection(methodWeights?: MethodWeights): string {
     <div class="weight-grid">${rows}</div>
     <button data-action="reset-weights" type="button">Reset to defaults</button>
   </div>`;
+}
+
+function renderMtfTimeframeSection(timeframes?: MtfTimeframes): string {
+  const labels: Readonly<Record<MtfInterval, string>> = {
+    "1m": "1 minute",
+    "5m": "5 minutes",
+    "15m": "15 minutes",
+    "1h": "1 hour",
+    "4h": "4 hours",
+    "1d": "1 day",
+    "1w": "1 week",
+    "1mo": "1 month",
+  };
+  const fields = [0, 1, 2] as const;
+  return `<div class="setting-group">
+    <label>MTF Confluence timeframes</label>
+    <div class="card-settings-grid">
+      ${fields
+        .map((index) => {
+          const current = timeframes?.[index] ?? DEFAULT_MTF_TIMEFRAMES[index];
+          const options = MTF_INTERVALS.map(
+            (interval) =>
+              `<option value="${interval}"${interval === current ? " selected" : ""}>${labels[interval]}</option>`,
+          ).join("");
+          return `<label for="mtf-timeframe-${index + 1}">Timeframe ${index + 1}
+            <select id="mtf-timeframe-${index + 1}" data-action="mtf-timeframe-change">${options}</select>
+          </label>`;
+        })
+        .join("")}
+    </div>
+    <span class="text-secondary">
+      Choose three distinct intervals. The latest candle in each is excluded to avoid using an unfinished bar.
+    </span>
+  </div>`;
+}
+
+function readMtfTimeframes(container: HTMLElement): MtfTimeframes | null {
+  const first = container.querySelector<HTMLSelectElement>("#mtf-timeframe-1")?.value;
+  const second = container.querySelector<HTMLSelectElement>("#mtf-timeframe-2")?.value;
+  const third = container.querySelector<HTMLSelectElement>("#mtf-timeframe-3")?.value;
+  if (!isMtfInterval(first) || !isMtfInterval(second) || !isMtfInterval(third)) return null;
+  return [first, second, third];
+}
+
+function isMtfInterval(value: unknown): value is MtfInterval {
+  return typeof value === "string" && MTF_INTERVALS.some((interval) => interval === value);
 }
 
 function escapeAttr(s: string): string {

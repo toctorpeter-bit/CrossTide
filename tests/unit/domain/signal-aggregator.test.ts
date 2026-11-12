@@ -27,6 +27,18 @@ describe("aggregateSignals", () => {
     const methods = new Set(signals.map((s) => s.method));
     expect(methods.size).toBe(12);
   });
+
+  it("includes MTFConfluence only when three timeframe series are supplied", () => {
+    const closes = Array.from({ length: 200 }, (_, i) => 100 + Math.sin(i / 10) * 20);
+    const candles = makeCandles(closes);
+    const signals = aggregateSignals("TSLA", candles, [
+      { interval: "15m", candles },
+      { interval: "1h", candles },
+      { interval: "4h", candles },
+    ]);
+
+    expect(signals.some((signal) => signal.method === "MTFConfluence")).toBe(true);
+  });
 });
 
 describe("aggregateConsensus", () => {

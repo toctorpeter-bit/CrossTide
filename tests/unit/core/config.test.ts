@@ -292,20 +292,39 @@ describe("config", () => {
   });
 
   // G20 — method weights persistence
-  describe("loadConfig methodWeights re-attachment (G20)", () => {
+  describe("loadConfig consensus preference re-attachment", () => {
     it("re-attaches persisted methodWeights after Valibot parse", () => {
       const raw = {
         version: 1,
         config: {
           theme: "dark",
           watchlist: [],
-          methodWeights: { Micho: 2, RSI: 0.5 },
+          methodWeights: { Micho: 2, RSI: 0.5, MTFConfluence: 1.5 },
+          mtfTimeframes: ["1d", "1w", "1mo"],
         },
       };
       localStorage.setItem("crosstide-config", JSON.stringify(raw));
       const config = loadConfig();
       expect(config.methodWeights?.["Micho"]).toBe(2);
       expect(config.methodWeights?.["RSI"]).toBe(0.5);
+      expect(config.methodWeights?.["MTFConfluence"]).toBe(1.5);
+      expect(config.mtfTimeframes).toEqual(["1d", "1w", "1mo"]);
+    });
+
+    it("ignores invalid persisted MTF interval selections", () => {
+      localStorage.setItem(
+        "crosstide-config",
+        JSON.stringify({
+          version: 1,
+          config: {
+            theme: "dark",
+            watchlist: [],
+            mtfTimeframes: ["1d", "invalid", "1mo"],
+          },
+        }),
+      );
+
+      expect(loadConfig().mtfTimeframes).toBeUndefined();
     });
 
     it("clamps out-of-range weights to [0, 3]", () => {

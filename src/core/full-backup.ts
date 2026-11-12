@@ -22,6 +22,7 @@ export function collectFullBackup(
     theme: config.theme,
     drawings: exportAllDrawings(),
     alertRules: loadAlertRules(),
+    ...(config.mtfTimeframes !== undefined && { mtfTimeframes: config.mtfTimeframes }),
     ...runtimeDomains,
   };
 

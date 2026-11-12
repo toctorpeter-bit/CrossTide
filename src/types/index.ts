@@ -16,9 +16,16 @@ export type {
   ConsensusExplanation,
   CardId,
   CardSettingsMap,
+  MtfInterval,
+  MtfTimeframes,
 } from "./domain";
 export type { SignalDirection, MethodName, SmaPeriod } from "./domain";
-export { SMA_PERIODS, DEFAULT_METHOD_WEIGHTS } from "./domain";
+export {
+  SMA_PERIODS,
+  DEFAULT_METHOD_WEIGHTS,
+  MTF_INTERVALS,
+  DEFAULT_MTF_TIMEFRAMES,
+} from "./domain";
 export { createMarketDataEnvelope } from "./market-data";
 export type {
   MarketDataKind,

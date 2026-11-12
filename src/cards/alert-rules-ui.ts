@@ -28,6 +28,7 @@ const METHODS: readonly MethodName[] = [
   "WilliamsR",
   "MFI",
   "SuperTrend",
+  "MTFConfluence",
 ];
 
 function escapeHtml(s: string): string {

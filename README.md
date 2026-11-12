@@ -80,7 +80,7 @@ computed through side-effect-free indicators, and presented as explainable signa
 
 | Category | Highlights |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Consensus Engine** | 12 technical methods (SMA, EMA, MACD, RSI, Bollinger, Stochastic, ADX, OBV, VWAP, Ichimoku, Williams %R, CCI) with aggregated BUY/SELL/HOLD signals |
+| **Consensus Engine** | 12 core methods with aggregated BUY/SELL/NEUTRAL signals; optional configurable three-timeframe MTFConfluence |
 | **Interactive Charts** | Candlestick + overlay indicators, drawing tools (trendline, fib, rectangle, channel, ray, hline, text), multi-chart layouts |
 | **Backtesting** | Strategy comparison engine, performance metrics (Sharpe, Sortino, max drawdown), equity curve visualization |
 | **Screening** | Custom filters with preset strategies, real-time sorting, virtual-scrolled 10K+ row tables |
@@ -93,6 +93,12 @@ computed through side-effect-free indicators, and presented as explainable signa
 | **Accessibility** | WCAG 2.2 AA verified on all 25 routes (contrast, target size, error suggestion), keyboard nav, color-blind palettes, skip links, opt-in AAA enhanced-contrast mode |
 | **Performance** | < 250 KB gzipped, virtual scrolling, lazy-loaded cards, and view transitions |
 | **i18n** | English, Spanish, German, Chinese, Hebrew (RTL), and Japanese |
+
+`MTFConfluence` is opt-in in Settings → Consensus Weights (weight greater than 0). Configure its
+three intervals independently in Settings; supported choices include 1m, 5m, 15m, 1h, 4h, 1D,
+1W, and 1M. The intervals must be distinct. BUY or SELL requires 10/30-SMA alignment across all
+three. The latest candle of each selected series is excluded to avoid using a potentially
+unfinished bar; 4h candles are built from complete hourly groups within each UTC date.
 
 ---
 

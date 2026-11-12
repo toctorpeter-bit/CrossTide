@@ -5,9 +5,8 @@
  * Consensus BUY: Micho BUY + at least one other method BUY.
  * Consensus SELL: Micho SELL + at least one other method SELL.
  *
- * Micho method is the "approved" primary method and carries 3× weight in
- * the strength score by default. Per-method weights (G20) allow users to
- * override this — a weight of 0 disables a method from the tally.
+ * Micho is the primary method and carries 3× weight by default. MTFConfluence
+ * is an optional direction gate; a weight of 0 disables a method.
  */
 import type {
   ConsensusResult,
@@ -32,6 +31,7 @@ const BUY_METHODS = new Set([
   "WilliamsR",
   "MFI",
   "SuperTrend",
+  "MTFConfluence",
 ]);
 
 /**
@@ -49,8 +49,8 @@ function resolveWeight(method: string, weights?: MethodWeights): number {
 
 /**
  * Evaluate consensus from a list of method signals for a single ticker.
- * Accepts optional per-method weights (G20); falls back to built-in defaults
- * (Micho = 3×, all others = 1×) when omitted.
+ * Accepts optional per-method weights; defaults to Micho = 3×, core methods =
+ * 1×, and MTFConfluence = 0× (opt-in).
  */
 export function evaluateConsensus(
   ticker: string,
@@ -62,6 +62,10 @@ export function evaluateConsensus(
 
   const michoBuy = buySignals.some((s) => s.method === "Micho");
   const michoSell = sellSignals.some((s) => s.method === "Micho");
+  // A positive MTF weight opts in to a hard direction gate, not just another vote.
+  const mtfEnabled = resolveWeight("MTFConfluence", weights) > 0;
+  const mtfBuy = buySignals.some((s) => s.method === "MTFConfluence");
+  const mtfSell = sellSignals.some((s) => s.method === "MTFConfluence");
 
   // Weighted vote tallies
   const michoWeight = resolveWeight("Micho", weights);
@@ -82,10 +86,22 @@ export function evaluateConsensus(
   const otherBuyCount = buySignals.filter((s) => s.method !== "Micho").length;
   const otherSellCount = sellSignals.filter((s) => s.method !== "Micho").length;
 
-  if (michoEnabled && michoBuy && otherBuyCount >= 1 && otherBuyWeight > 0) {
+  if (
+    michoEnabled &&
+    michoBuy &&
+    otherBuyCount >= 1 &&
+    otherBuyWeight > 0 &&
+    (!mtfEnabled || mtfBuy)
+  ) {
     direction = "BUY";
     strength = totalWeighted > 0 ? (michoWeight + otherBuyWeight) / totalWeighted : 0;
-  } else if (michoEnabled && michoSell && otherSellCount >= 1 && otherSellWeight > 0) {
+  } else if (
+    michoEnabled &&
+    michoSell &&
+    otherSellCount >= 1 &&
+    otherSellWeight > 0 &&
+    (!mtfEnabled || mtfSell)
+  ) {
     direction = "SELL";
     strength = totalWeighted > 0 ? (michoWeight + otherSellWeight) / totalWeighted : 0;
   } else {
@@ -108,6 +124,13 @@ export function evaluateConsensus(
     limitations.push("Micho is disabled, so BUY and SELL consensus cannot trigger.");
   if (michoEnabled && direction === "NEUTRAL") {
     limitations.push("A Micho signal and at least one active supporting method are required.");
+  }
+  if (mtfEnabled && direction === "NEUTRAL" && !mtfBuy && !mtfSell) {
+    limitations.push(
+      "MTFConfluence is enabled, but no aligned signal across the selected timeframes is available.",
+    );
+  } else if (mtfEnabled && direction === "NEUTRAL" && (mtfBuy || mtfSell)) {
+    limitations.push("MTFConfluence does not confirm the primary signal, so consensus is blocked.");
   }
 
   const explanation: ConsensusExplanation = {

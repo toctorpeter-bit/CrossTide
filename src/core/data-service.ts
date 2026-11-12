@@ -2,11 +2,24 @@
  * Data Service — orchestrates live market data fetching and consensus computation.
  *
  * Uses Yahoo Finance v8 chart API with a configurable CORS proxy.
- * Runs the full 12-method consensus engine on fetched candle data.
+ * Runs the consensus engine on fetched candle data.
  */
-import type { DailyCandle, ConsensusResult, InstrumentType, MethodWeights } from "../types/domain";
+import {
+  DEFAULT_METHOD_WEIGHTS,
+  DEFAULT_MTF_TIMEFRAMES,
+  type MtfInterval,
+  type MtfTimeframes,
+  type DailyCandle,
+  type ConsensusResult,
+  type InstrumentType,
+  type MethodWeights,
+} from "../types/domain";
 import type { MarketDataEnvelope } from "../types/market-data";
 import { aggregateConsensus } from "../domain/signal-aggregator";
+import type {
+  MultiTimeframeCandles,
+  TimeframeCandles,
+} from "../domain/mtf-confluence-method";
 import { validateOhlcv } from "../domain/validate-ohlcv";
 import { fetchWithTimeout } from "./fetch";
 import { safeParse, YahooChartSchema } from "../types/valibot-schemas";
@@ -268,6 +281,170 @@ async function fetchCandles(
   }
 }
 
+function getMtfFetchTimeframe(interval: MtfInterval): TimeframePreset {
+  switch (interval) {
+    case "1m":
+      return { label: "5D", range: "5d", interval: "1m" };
+    case "5m":
+      return { label: "5D", range: "5d", interval: "5m" };
+    case "15m":
+      return { label: "5D", range: "5d", interval: "15m" };
+    case "1h":
+      return { label: "3M", range: "3mo", interval: "1h" };
+    case "4h":
+      return { label: "1Y", range: "1y", interval: "1h" };
+    case "1d":
+      return { label: "1Y", range: "1y", interval: "1d" };
+    case "1w":
+      return { label: "5Y", range: "5y", interval: "1wk" };
+    case "1mo":
+      return { label: "5Y", range: "5y", interval: "1mo" };
+    default:
+      throw new Error(`Unsupported MTF interval: ${interval}`);
+  }
+}
+
+async function fetchMtfRawCandles(
+  ticker: string,
+  signal: AbortSignal | undefined,
+  timeframe: TimeframePreset,
+): Promise<DailyCandle[]> {
+  let result: CandleResult;
+  try {
+    result = await fetchYahooCandles(ticker, signal, timeframe);
+  } catch (primaryError) {
+    if (signal?.aborted) throw primaryError;
+    try {
+      result = await fetchWorkerCandles(ticker, signal, timeframe);
+    } catch {
+      throw primaryError;
+    }
+  }
+
+  validateMtfCandles(result.candles, ticker);
+  return result.candles;
+}
+
+function validateMtfCandles(candles: readonly DailyCandle[], ticker: string): void {
+  for (let index = 0; index < candles.length; index += 1) {
+    const candle = candles[index]!;
+    const values = [candle.open, candle.high, candle.low, candle.close, candle.volume];
+    if (
+      !values.every(Number.isFinite) ||
+      !Number.isFinite(Date.parse(candle.date)) ||
+      candle.volume < 0 ||
+      candle.low < 0 ||
+      candle.high < candle.low ||
+      candle.open < candle.low ||
+      candle.open > candle.high ||
+      candle.close < candle.low ||
+      candle.close > candle.high ||
+      (index > 0 && candle.date < candles[index - 1]!.date)
+    ) {
+      throw new Error(`Invalid timeframe candle data for ${ticker}`);
+    }
+  }
+}
+
+function validateMtfInterval(
+  interval: MtfInterval,
+  candles: readonly DailyCandle[],
+  ticker: string,
+): void {
+  if (interval === "1m" || interval === "5m" || interval === "15m" || interval === "1h") {
+    const distinctDates = new Set(candles.map((candle) => candle.date.slice(0, 10)));
+    if (distinctDates.size === candles.length) {
+      throw new Error(`Provider did not return ${interval} candles for ${ticker}`);
+    }
+    return;
+  }
+
+  if (interval !== "1w" && interval !== "1mo") return;
+  if (candles.length < 2) return;
+  const first = Date.parse(candles[0]!.date.slice(0, 10));
+  const last = Date.parse(candles[candles.length - 1]!.date.slice(0, 10));
+  const averageDaysPerBar = (last - first) / (86_400_000 * (candles.length - 1));
+  const minimumDaysPerBar = interval === "1w" ? 4 : 20;
+  if (!Number.isFinite(averageDaysPerBar) || averageDaysPerBar < minimumDaysPerBar) {
+    throw new Error(`Provider did not return ${interval} candles for ${ticker}`);
+  }
+}
+
+function aggregateHourlyToFourHour(candles: readonly DailyCandle[]): DailyCandle[] {
+  const fourHour: DailyCandle[] = [];
+  let dayStart = 0;
+
+  while (dayStart < candles.length) {
+    const day = candles[dayStart]!.date.slice(0, 10);
+    let dayEnd = dayStart + 1;
+    while (dayEnd < candles.length && candles[dayEnd]!.date.slice(0, 10) === day) dayEnd++;
+
+    for (let start = dayStart; start + 4 <= dayEnd; start += 4) {
+      const first = candles[start]!;
+      const last = candles[start + 3]!;
+      const bars = candles.slice(start, start + 4);
+      fourHour.push({
+        date: last.date,
+        open: first.open,
+        high: Math.max(...bars.map((bar) => bar.high)),
+        low: Math.min(...bars.map((bar) => bar.low)),
+        close: last.close,
+        volume: bars.reduce((total, bar) => total + bar.volume, 0),
+      });
+    }
+
+    dayStart = dayEnd;
+  }
+
+  return fourHour;
+}
+
+async function fetchMtfTimeframe(
+  ticker: string,
+  signal: AbortSignal | undefined,
+  interval: MtfInterval,
+): Promise<TimeframeCandles> {
+  const timeframe = getMtfFetchTimeframe(interval);
+  const fetched = await fetchMtfRawCandles(ticker, signal, timeframe);
+  validateMtfInterval(interval === "4h" ? "1h" : interval, fetched, ticker);
+  // The provider may include a still-forming tail bar; only use closed bars.
+  const completedSource = fetched.slice(0, -1);
+  const candles =
+    interval === "4h" ? aggregateHourlyToFourHour(completedSource) : completedSource;
+  return { interval, candles };
+}
+
+async function fetchMtfCandles(
+  ticker: string,
+  signal: AbortSignal | undefined,
+  timeframes: MtfTimeframes,
+): Promise<MultiTimeframeCandles> {
+  if (new Set(timeframes).size !== 3) {
+    throw new RangeError("MTFConfluence requires three distinct timeframes");
+  }
+  const requests = new Map<MtfInterval, Promise<TimeframeCandles>>();
+  const load = (interval: MtfInterval): Promise<TimeframeCandles> => {
+    let request = requests.get(interval);
+    if (!request) {
+      request = fetchMtfTimeframe(ticker, signal, interval);
+      requests.set(interval, request);
+    }
+    return request;
+  };
+  const [first, second, third] = await Promise.all([
+    load(timeframes[0]),
+    load(timeframes[1]),
+    load(timeframes[2]),
+  ]);
+  const series: MultiTimeframeCandles = [first, second, third];
+  if (series.some((timeframe) => timeframe.candles.length < 30)) {
+    throw new RangeError(
+      "At least 30 completed candles are required for each MTFConfluence timeframe",
+    );
+  }
+  return series;
+}
+
 /**
  * Fetch full ticker data: price, change, volume stats, 52W range, and consensus.
  * Pass a navigation `signal` (from `getNavigationSignal()`) to auto-cancel on route change.
@@ -277,6 +454,7 @@ export async function fetchTickerData(
   signal?: AbortSignal,
   weights?: MethodWeights,
   timeframe?: TimeframePreset,
+  mtfTimeframes: MtfTimeframes = DEFAULT_MTF_TIMEFRAMES,
 ): Promise<TickerData> {
   try {
     const { candles, instrumentType, sector, name, provenance, status, warnings } =
@@ -311,8 +489,22 @@ export async function fetchTickerData(
     // 30-day closes for sparkline
     const closes30d = candles.slice(-30).map((c) => c.close);
 
-    // Run consensus engine (all 12 methods, optional per-method weights)
-    const consensus = candles.length >= 151 ? aggregateConsensus(ticker, candles, weights) : null;
+    const dataWarnings = [...warnings];
+    let multiTimeframeCandles: MultiTimeframeCandles | undefined;
+    const mtfWeight = weights?.MTFConfluence ?? DEFAULT_METHOD_WEIGHTS.MTFConfluence ?? 0;
+    if (candles.length >= 151 && mtfWeight > 0) {
+      try {
+        multiTimeframeCandles = await fetchMtfCandles(ticker, signal, mtfTimeframes);
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        const detail = error instanceof Error ? error.message : String(error);
+        dataWarnings.push(`MTFConfluence unavailable: ${detail}`);
+      }
+    }
+    const consensus =
+      candles.length >= 151
+        ? aggregateConsensus(ticker, candles, weights, multiTimeframeCandles)
+        : null;
 
     // Track data freshness for staleness indicators
     markFetched(ticker);
@@ -334,7 +526,7 @@ export async function fetchTickerData(
       ...(name !== undefined && { name }),
       provenance,
       dataStatus: status,
-      dataWarnings: warnings,
+      dataWarnings,
     };
   } catch (err) {
     return emptyData(ticker, err instanceof Error ? err.message : String(err));
@@ -350,6 +542,7 @@ export async function fetchAllTickers(
   onProgress?: (done: number, total: number) => void,
   signal?: AbortSignal,
   weights?: MethodWeights,
+  mtfTimeframes: MtfTimeframes = DEFAULT_MTF_TIMEFRAMES,
 ): Promise<Map<string, TickerData>> {
   const results = new Map<string, TickerData>();
   const CONCURRENCY = 3;
@@ -360,7 +553,7 @@ export async function fetchAllTickers(
     while (queue.length > 0) {
       if (signal?.aborted) break;
       const ticker = queue.shift()!;
-      const data = await fetchTickerData(ticker, signal, weights);
+      const data = await fetchTickerData(ticker, signal, weights, undefined, mtfTimeframes);
       results.set(ticker, data);
       done++;
       onProgress?.(done, tickers.length);

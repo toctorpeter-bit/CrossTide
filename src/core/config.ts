@@ -6,9 +6,12 @@ import type {
   CardId,
   CardSettingsMap,
   InstrumentType,
+  MtfInterval,
+  MtfTimeframes,
   MethodWeights,
   WatchlistEntry,
 } from "../types/domain";
+import { MTF_INTERVALS } from "../types/domain";
 import {
   AlertsCardSettingsSchema,
   AppConfigSchema,
@@ -70,16 +73,20 @@ export function loadConfig(): AppConfig {
       return name ? { ...entry, name } : entry;
     });
 
-    // G20: AppConfigSchema omits `methodWeights` for the same reason. Parse manually
-    // to keep exactOptionalPropertyTypes clean.
+    // Preferences omitted by AppConfigSchema are re-attached from the raw config
+    // so exactOptionalPropertyTypes remains clean.
     const rawWeights = rawCfg["methodWeights"];
     const methodWeights: MethodWeights | undefined = parseMethodWeights(rawWeights);
+    const mtfTimeframes = parseMtfTimeframes(rawCfg["mtfTimeframes"]);
     const cardSettings: CardSettingsMap | undefined = parseCardSettings(rawCfg["cardSettings"]);
     const refreshIntervalMs: number | undefined = parseRefreshInterval(rawCfg["refreshIntervalMs"]);
 
     const baseConfig = watchlist === cfg.watchlist ? cfg : { ...cfg, watchlist };
     const withWeights = methodWeights !== undefined ? { ...baseConfig, methodWeights } : baseConfig;
-    const withCards = cardSettings !== undefined ? { ...withWeights, cardSettings } : withWeights;
+    const withTimeframes =
+      mtfTimeframes !== undefined ? { ...withWeights, mtfTimeframes } : withWeights;
+    const withCards =
+      cardSettings !== undefined ? { ...withTimeframes, cardSettings } : withTimeframes;
     return refreshIntervalMs !== undefined ? { ...withCards, refreshIntervalMs } : withCards;
   } catch {
     return DEFAULT_CONFIG;
@@ -256,6 +263,7 @@ const WEIGHT_KEYS: ReadonlyArray<keyof MethodWeights> = [
   "WilliamsR",
   "MFI",
   "SuperTrend",
+  "MTFConfluence",
 ];
 
 /**
@@ -277,6 +285,17 @@ function parseMethodWeights(raw: unknown): MethodWeights | undefined {
     hasAny = true;
   }
   return hasAny ? result : undefined;
+}
+
+function parseMtfTimeframes(raw: unknown): MtfTimeframes | undefined {
+  if (!Array.isArray(raw) || raw.length !== 3) return undefined;
+  const [first, second, third] = raw;
+  if (!isMtfInterval(first) || !isMtfInterval(second) || !isMtfInterval(third)) return undefined;
+  return [first, second, third];
+}
+
+function isMtfInterval(value: unknown): value is MtfInterval {
+  return typeof value === "string" && MTF_INTERVALS.some((interval) => interval === value);
 }
 
 function parseCardSettings(raw: unknown): CardSettingsMap | undefined {

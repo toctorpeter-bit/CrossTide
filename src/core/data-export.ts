@@ -3,9 +3,9 @@
  *
  * Extends core export-import with card-specific serializers.
  *
- * C7: Full-data export with schema-versioned envelope (schema_version = 7).
+ * Full-data export with a schema-versioned envelope.
  */
-import type { AlertRecord, Holding, WatchlistEntry } from "../types/domain";
+import type { AlertRecord, Holding, MtfTimeframes, WatchlistEntry } from "../types/domain";
 import type { BacktestResult, BacktestTrade } from "../domain/backtest-engine";
 
 // ── Schema-versioned full-data export (C7) ────────────────────────────────────
@@ -14,7 +14,7 @@ import type { BacktestResult, BacktestTrade } from "../domain/backtest-engine";
  * Schema version for the full export format.
  * Increment when the shape of FullExportPayload changes.
  */
-export const EXPORT_SCHEMA_VERSION = 8;
+export const EXPORT_SCHEMA_VERSION = 9;
 
 /**
  * Optional data domains included in a full export.
@@ -32,6 +32,8 @@ export interface FullExportDomains {
   readonly theme?: string;
   /** Method weights. */
   readonly methodWeights?: Record<string, number>;
+  /** Three intervals used by MTF confluence. */
+  readonly mtfTimeframes?: MtfTimeframes;
   /** Per-card settings. */
   readonly cardSettings?: Record<string, unknown>;
 }

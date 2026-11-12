@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fetchTickerData, fetchAllTickers } from "../../../src/core/data-service";
+import type { MultiTimeframeCandles } from "../../../src/domain/mtf-confluence-method";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -8,7 +9,7 @@ vi.mock("../../../src/core/fetch", () => ({
   fetchWithTimeout: (...args: unknown[]) => mockFetch(...args),
 }));
 
-const mockConsensus = vi.fn(() => ({ signal: "BUY", confidence: 0.8 }));
+const mockConsensus = vi.fn((..._args: unknown[]) => ({ signal: "BUY", confidence: 0.8 }));
 vi.mock("../../../src/domain/signal-aggregator", () => ({
   aggregateConsensus: (...args: unknown[]) => mockConsensus(...args),
 }));
@@ -30,9 +31,30 @@ function yahooResponse(opts: {
   marketState?: string;
   regularMarketTime?: number;
   withNulls?: boolean;
+  interval?: "15m" | "1h" | "1wk" | "1mo";
 }): Record<string, unknown> {
   const n = opts.n ?? 10;
-  const timestamps = makeTimestamps(n);
+  let timestamps = makeTimestamps(n);
+  if (opts.interval === "15m") {
+    timestamps = Array.from(
+      { length: n },
+      (_, i) =>
+        new Date("2023-01-02").getTime() / 1000 + Math.floor(i / 40) * 86400 + (i % 40) * 900,
+    );
+  } else if (opts.interval === "1h") {
+    timestamps = Array.from(
+      { length: n },
+      (_, i) =>
+        new Date("2023-01-02").getTime() / 1000 + Math.floor(i / 8) * 86400 + (i % 8) * 3600,
+    );
+  } else if (opts.interval === "1wk") {
+    timestamps = Array.from(
+      { length: n },
+      (_, i) => new Date("2023-01-02").getTime() / 1000 + i * 7 * 86400,
+    );
+  } else if (opts.interval === "1mo") {
+    timestamps = Array.from({ length: n }, (_, i) => Date.UTC(2023, i, 2) / 1000);
+  }
 
   const opens = Array.from({ length: n }, (_, i) => 100 + i * 0.5);
   const highs = opens.map((v) => v + 2);
@@ -155,7 +177,101 @@ describe("fetchTickerData", () => {
     const data = await fetchTickerData("MSFT");
 
     expect(mockConsensus).toHaveBeenCalledOnce();
+    expect(mockFetch).toHaveBeenCalledOnce();
     expect(data.consensus).toBe(sentinel);
+  });
+
+  it("fetches configured MTF series only when its weight is enabled and drops latest candles", async () => {
+    mockFetch.mockImplementation((url: unknown) => {
+      const requestUrl = String(url);
+      return makeResponse(
+        requestUrl.includes("interval=15m")
+          ? yahooResponse({ n: 200, interval: "15m" })
+          : requestUrl.includes("interval=1h")
+            ? yahooResponse({ n: 320, interval: "1h" })
+            : yahooResponse({ n: 200 }),
+      );
+    });
+
+    await fetchTickerData("MSFT", undefined, { MTFConfluence: 1 });
+
+    const urls = mockFetch.mock.calls.map((call) => String(call[0]));
+    expect(urls).toHaveLength(4);
+    expect(urls.some((url) => url.includes("range=5d&interval=15m"))).toBe(true);
+    expect(urls.some((url) => url.includes("range=3mo&interval=1h"))).toBe(true);
+    expect(urls.some((url) => url.includes("range=1y&interval=1h"))).toBe(true);
+    expect(mockConsensus.mock.calls[0]?.[3]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          interval: "15m",
+          candles: expect.any(Array),
+        }),
+        expect.objectContaining({
+          interval: "1h",
+          candles: expect.any(Array),
+        }),
+        expect.objectContaining({
+          interval: "4h",
+          candles: expect.arrayContaining([
+            expect.objectContaining({
+              open: 100,
+              high: 103.5,
+              low: 99,
+              close: 102,
+              volume: 4_060_000,
+            }),
+          ]),
+        }),
+      ]),
+    );
+    const timeframes = mockConsensus.mock.calls[0]?.[3] as MultiTimeframeCandles;
+    expect(timeframes.map((series) => series.interval)).toEqual(["15m", "1h", "4h"]);
+    expect(timeframes.map((series) => series.candles.length)).toEqual([199, 319, 79]);
+  });
+
+  it("fetches the selected daily, weekly, and monthly intervals", async () => {
+    mockFetch.mockImplementation((url: unknown) => {
+      const requestUrl = String(url);
+      if (requestUrl.includes("interval=1wk")) {
+        return makeResponse(yahooResponse({ n: 40, interval: "1wk" }));
+      }
+      if (requestUrl.includes("interval=1mo")) {
+        return makeResponse(yahooResponse({ n: 40, interval: "1mo" }));
+      }
+      return makeResponse(
+        yahooResponse({
+          n: requestUrl.includes("range=1y&interval=1d") ? 200 : 40,
+        }),
+      );
+    });
+
+    await fetchTickerData(
+      "MSFT",
+      undefined,
+      { MTFConfluence: 1 },
+      undefined,
+      ["1d", "1w", "1mo"],
+    );
+
+    const urls = mockFetch.mock.calls.map((call) => String(call[0]));
+    expect(urls.some((url) => url.includes("range=1y&interval=1d"))).toBe(true);
+    expect(urls.some((url) => url.includes("range=5y&interval=1wk"))).toBe(true);
+    expect(urls.some((url) => url.includes("range=5y&interval=1mo"))).toBe(true);
+    expect(mockConsensus.mock.calls[0]?.[3]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ interval: "1d" }),
+        expect.objectContaining({ interval: "1w" }),
+        expect.objectContaining({ interval: "1mo" }),
+      ]),
+    );
+    const timeframes = mockConsensus.mock.calls[0]?.[3] as MultiTimeframeCandles;
+    expect(timeframes.map((series) => series.interval)).toEqual(["1d", "1w", "1mo"]);
+    expect(timeframes.map((series) => series.candles.length)).toEqual([199, 39, 39]);
+    expect(timeframes.map((series) => series.candles.at(-1)?.close)).toEqual([
+      199.5,
+      119.5,
+      119.5,
+    ]);
   });
 
   it("computes change and changePercent correctly", async () => {

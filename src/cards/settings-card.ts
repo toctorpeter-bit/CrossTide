@@ -188,6 +188,11 @@ const settingsCard: CardModule = {
         const latest = loadConfig();
         saveConfig({ ...latest, methodWeights: weights });
       },
+      onMtfTimeframesChange(mtfTimeframes) {
+        const latest = loadConfig();
+        saveConfig({ ...latest, mtfTimeframes });
+        notifyConfigChanged();
+      },
       onCardSettingsChange(cardId, settings) {
         const latest = loadConfig();
         const nextCardSettings = {

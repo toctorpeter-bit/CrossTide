@@ -1,7 +1,7 @@
 # 📊 CrossTide Indicator Reference
 
 > Auto-generated from `src/domain/` JSDoc.
-> 218 modules | 679 exported functions | 361 interfaces
+> 219 modules | 680 exported functions | 363 interfaces
 
 ## 📋 Summary Table
 
@@ -130,6 +130,7 @@
 | [`Momentum`](#momentum) | Oscillators & Momentum | 1 | Momentum oscillator. Simple price difference over `period` bars: momentum[i] … |
 | [`Monte Carlo`](#monte-carlo) | Other | 2 | Monte Carlo simulation — generate random portfolio outcome scenarios using hi… |
 | [`Mtf Confluence`](#mtf-confluence) | Other | 1 | Multi-Timeframe Confluence — evaluates signals across daily, weekly, and mont… |
+| [`Mtf Confluence Method`](#mtf-confluence-method) | Signal Methods | 1 | Multi-Timeframe Confluence Method — pure consensus signal logic. |
 | [`Multi Timeframe`](#multi-timeframe) | Trend Indicators | 5 | Multi-timeframe trend — consolidate trend signals across daily, weekly, and m… |
 | [`Name Enrichment`](#name-enrichment) | Other | 5 | Company name enrichment helpers (G19). |
 | [`News Digest`](#news-digest) | Other | 11 | News digest domain helpers (I11). |
@@ -180,7 +181,7 @@
 | [`Seasonality`](#seasonality) | Other | 2 | Seasonality aggregations: average daily return grouped by month (0–11) or day… |
 | [`Sector Allocation`](#sector-allocation) | Other | 6 | Sector allocation calculator — compute sector weightings and concentration me… |
 | [`Sector Rotation`](#sector-rotation) | Other | 4 | Sector Rotation domain — relative strength ranking (H20). |
-| [`Signal Aggregator`](#signal-aggregator) | Other | 2 | Signal Aggregator — runs all 12 method detectors for a ticker, then feeds res… |
+| [`Signal Aggregator`](#signal-aggregator) | Other | 2 | Signal Aggregator — runs the core method detectors for a ticker, then feeds r… |
 | [`Signal Dsl`](#signal-dsl) | Signal DSL | 4 | Tiny safe expression evaluator for user-authored signal rules. |
 | [`Signal Strategy Io`](#signal-strategy-io) | Other | 10 | Shared signal strategy I/O (I6). |
 | [`Sma Calculator`](#sma-calculator) | Other | 2 | SMA Calculator — Pure domain logic. Ported from Dart: lib/src/domain/sma_calc… |
@@ -2316,14 +2317,14 @@ Sector Rotation domain — relative strength ranking (H20).
 
 **File:** `src/domain/signal-aggregator.ts`
 
-Signal Aggregator — runs all 12 method detectors for a ticker, then feeds results into the consensus engine.
+Signal Aggregator — runs the core method detectors for a ticker, then feeds results into the consensus engine.
 
 **Functions:**
 
 | Function | Description |
 | --- | --- |
-| `aggregateSignals()` | Signal Aggregator — runs all 12 method detectors for a ticker, then feeds results into the consensus engine. |
-| `aggregateConsensus()` | Run all 12 detectors and produce a consensus result. Pass optional per-method `weights` (G20) to personalise the score. |
+| `aggregateSignals()` | Run all method detectors and return their individual signals. Null results (insufficient data) are excluded. |
+| `aggregateConsensus()` | Run all 12 core detectors and produce a consensus result. Supply three selected timeframe series to include MTFConfluence; the caller must exclude potentially unfinished latest bars. |
 
 ---
 
@@ -3094,6 +3095,22 @@ Micho Method Detector — Pure domain logic. Ported from Dart: lib/src/domain/mi
 | Function | Description |
 | --- | --- |
 | `evaluate()` | — |
+
+---
+
+### Mtf Confluence Method
+
+**File:** `src/domain/mtf-confluence-method.ts`
+
+Multi-Timeframe Confluence Method — pure consensus signal logic. Emits BUY or SELL only when all three configured trends independently agree using 10/30-bar simple moving-average alignment.
+
+**Functions:**
+
+| Function | Description |
+| --- | --- |
+| `evaluateMtfConfluence()` | Evaluate the three selected interval trends from completed candles supplied by the caller. Returns null when fewer than 30 candles are available in any interval. |
+
+**Types:** `MultiTimeframeCandles`, `TimeframeCandles`
 
 ---
 

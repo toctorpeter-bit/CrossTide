@@ -51,6 +51,11 @@ describe("collectFullBackup", () => {
     expect(backup.theme).toBe("light");
   });
 
+  it("includes configured MTF timeframes", () => {
+    saveConfig({ theme: "dark", watchlist: [], mtfTimeframes: ["1d", "1w", "1mo"] });
+    expect(collectFullBackup().mtfTimeframes).toEqual(["1d", "1w", "1mo"]);
+  });
+
   it("includes drawings", () => {
     const config: AppConfig = { theme: "dark", watchlist: [] };
     saveConfig(config);

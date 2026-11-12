@@ -1,11 +1,12 @@
 /**
- * Signal Aggregator — runs all 12 method detectors for a ticker,
+ * Signal Aggregator — runs the core method detectors for a ticker,
  * then feeds results into the consensus engine.
  *
  * Pure domain logic. No side effects.
  */
 import type { ConsensusResult, DailyCandle, MethodSignal, MethodWeights } from "../types/domain";
 import { evaluateConsensus } from "./consensus-engine";
+import { evaluateMtfConfluence, type MultiTimeframeCandles } from "./mtf-confluence-method";
 import { evaluate as evaluateMicho } from "./micho-method";
 import { evaluate as evaluateRsi } from "./rsi-method";
 import { evaluate as evaluateMacd } from "./macd-method";
@@ -40,23 +41,37 @@ const DETECTORS: readonly Detector[] = [
  * Run all method detectors and return their individual signals.
  * Null results (insufficient data) are excluded.
  */
-export function aggregateSignals(ticker: string, candles: readonly DailyCandle[]): MethodSignal[] {
+export function aggregateSignals(
+  ticker: string,
+  candles: readonly DailyCandle[],
+  multiTimeframeCandles?: MultiTimeframeCandles,
+): MethodSignal[] {
   const signals: MethodSignal[] = [];
   for (const detect of DETECTORS) {
     const sig = detect(ticker, candles);
     if (sig) signals.push(sig);
   }
+  if (multiTimeframeCandles) {
+    const mtfSignal = evaluateMtfConfluence(ticker, multiTimeframeCandles);
+    if (mtfSignal) signals.push(mtfSignal);
+  }
   return signals;
 }
 
 /**
- * Run all 12 detectors and produce a consensus result.
- * Pass optional per-method `weights` (G20) to personalise the score.
+ * Run all 12 core detectors and produce a consensus result.
+ * Supply three selected timeframe series to include MTFConfluence.
+ * Callers must exclude the latest potentially unfinished candle in each series.
  */
 export function aggregateConsensus(
   ticker: string,
   candles: readonly DailyCandle[],
   weights?: MethodWeights,
+  multiTimeframeCandles?: MultiTimeframeCandles,
 ): ConsensusResult {
-  return evaluateConsensus(ticker, aggregateSignals(ticker, candles), weights);
+  return evaluateConsensus(
+    ticker,
+    aggregateSignals(ticker, candles, multiTimeframeCandles),
+    weights,
+  );
 }

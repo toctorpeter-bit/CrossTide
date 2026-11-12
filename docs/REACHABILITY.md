@@ -3,8 +3,8 @@
 > Generated from `src/main.ts` and `src/sw.ts` by `scripts/reachability-inventory.mjs`.
 > Every module not reachable from those entry points appears exactly once below.
 
-- Source modules: 523
-- Reachable modules: 266
+- Source modules: 524
+- Reachable modules: 267
 - Unreachable modules: 257
 - Hard orphans: 8
 - Barrel-only modules: 232

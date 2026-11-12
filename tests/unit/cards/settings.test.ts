@@ -42,6 +42,25 @@ describe("renderSettings", () => {
     expect(options).toContain("high-contrast");
   });
 
+  it("renders configurable MTF intervals and reports selection changes", () => {
+    const onMtfTimeframesChange = vi.fn();
+    renderSettings(
+      container,
+      makeConfig({ mtfTimeframes: ["1d", "1w", "1mo"] }),
+      { ...callbacks, onMtfTimeframesChange },
+    );
+    const first = container.querySelector<HTMLSelectElement>("#mtf-timeframe-1")!;
+    const second = container.querySelector<HTMLSelectElement>("#mtf-timeframe-2")!;
+    const third = container.querySelector<HTMLSelectElement>("#mtf-timeframe-3")!;
+
+    expect([first.value, second.value, third.value]).toEqual(["1d", "1w", "1mo"]);
+    expect(Array.from(third.options).map((option) => option.value)).toContain("1mo");
+
+    first.value = "5m";
+    first.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(onMtfTimeframesChange).toHaveBeenCalledWith(["5m", "1w", "1mo"]);
+  });
+
   it("shows watchlist ticker count", () => {
     renderSettings(container, makeConfig(), callbacks);
     expect(container.innerHTML).toContain("1 tickers");

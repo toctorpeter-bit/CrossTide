@@ -146,4 +146,39 @@ describe("evaluateConsensus — per-method weights (G20)", () => {
     // Micho=3 + RSI=1 = 4 / 14
     expect(withDefaults.strength).toBeCloseTo(4 / 14, 5);
   });
+
+  it("allows MTFConfluence to support Micho when explicitly enabled", () => {
+    const signals = [makeSignal("Micho", "BUY"), makeSignal("MTFConfluence", "BUY")];
+    const result = evaluateConsensus("AAPL", signals, { MTFConfluence: 1 });
+
+    expect(result.direction).toBe("BUY");
+    expect(result.buyMethods.map((signal) => signal.method)).toContain("MTFConfluence");
+  });
+
+  it("blocks consensus when enabled MTFConfluence is neutral", () => {
+    const signals = [
+      makeSignal("Micho", "BUY"),
+      makeSignal("RSI", "BUY"),
+      makeSignal("MTFConfluence", "NEUTRAL"),
+    ];
+    const result = evaluateConsensus("AAPL", signals, { MTFConfluence: 1 });
+
+    expect(result.direction).toBe("NEUTRAL");
+    expect(result.explanation.limitations.join(" ")).toMatch(
+      /no aligned signal across the selected timeframes/i,
+    );
+  });
+
+  it("fails closed when MTFConfluence is enabled but no MTF signal is available", () => {
+    const result = evaluateConsensus(
+      "AAPL",
+      [makeSignal("Micho", "BUY"), makeSignal("RSI", "BUY")],
+      { MTFConfluence: 1 },
+    );
+
+    expect(result.direction).toBe("NEUTRAL");
+    expect(result.explanation.limitations.join(" ")).toMatch(
+      /no aligned signal across the selected timeframes/i,
+    );
+  });
 });

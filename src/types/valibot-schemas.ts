@@ -474,6 +474,7 @@ export const MethodWeightsSchema = object({
   WilliamsR: optional(pipe(number(), minValue(0), maxValue(3))),
   MFI: optional(pipe(number(), minValue(0), maxValue(3))),
   SuperTrend: optional(pipe(number(), minValue(0), maxValue(3))),
+  MTFConfluence: optional(pipe(number(), minValue(0), maxValue(3))),
 });
 
 /** G24: typed per-card settings schemas. */
@@ -529,7 +530,7 @@ export const RiskCardSettingsSchema = object({
 export const AppConfigSchema = object({
   theme: ThemeSchema,
   watchlist: array(WatchlistEntrySchema),
-  // G20/G24: methodWeights/cardSettings are parsed manually in config.ts
+  // G20/G24/MTF: methodWeights/cardSettings/mtfTimeframes are parsed manually in config.ts
   // to keep exactOptionalPropertyTypes clean.
 });
 
