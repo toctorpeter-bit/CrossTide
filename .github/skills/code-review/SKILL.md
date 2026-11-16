@@ -1,10 +1,8 @@
 ---
-agent: "quality-reviewer"
-model: "Claude Sonnet 4.5 (copilot)"
+name: code-review
 description: "Perform a structured code review on a PR or feature branch: layer direction, purity, types, tests, security, and bundle impact."
-tools: ["read_file", "grep_search", "semantic_search", "get_errors", "run_in_terminal", "memory"]
+disable-model-invocation: true
 ---
-
 # 🔍 Code Review — CrossTide
 
 Review the specified PR / branch / file set against CrossTide's project rules.

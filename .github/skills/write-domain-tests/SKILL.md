@@ -1,9 +1,8 @@
 ---
+name: write-domain-tests
 description: "Write comprehensive tests for a domain function"
-agent: "domain-specialist"
-tools: ["read_file", "create_file", "replace_string_in_file", "runTests"]
+disable-model-invocation: true
 ---
-
 # 🧪 Write Domain Tests
 
 Write Vitest unit tests for the specified domain function.

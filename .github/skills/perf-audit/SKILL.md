@@ -1,8 +1,8 @@
 ---
+name: perf-audit
 description: "Investigate and fix performance regressions in CrossTide"
-agent: "perf-specialist"
+disable-model-invocation: true
 ---
-
 # ⚡ Performance Audit
 
 ## 📦 Bundle size

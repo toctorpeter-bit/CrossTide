@@ -102,10 +102,6 @@
   },
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
   "github.copilot.chat.codesearch.enabled": true,
-  "chat.instructionsFilesLocations": {
-    ".github/copilot-instructions.md": true,
-    ".github/instructions": true
-  },
   "chat.promptFilesLocations": {
     ".github/prompts": true
   },

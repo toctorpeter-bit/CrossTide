@@ -1,10 +1,8 @@
 ---
-agent: "quality-reviewer"
-model: "Claude Sonnet 4.5 (copilot)"
+name: fix-quality
 description: "Fix accessibility, performance, RTL/i18n, and non-lint quality issues in CrossTide. For lint/type errors use /fix-ci instead."
-tools: ["read_file", "grep_search", "replace_string_in_file", "run_in_terminal", "get_errors"]
+disable-model-invocation: true
 ---
-
 # 🛠️ Fix Quality Issues — CrossTide
 
 Scan and fix quality issues that are **not** covered by Oxlint or `tsc`. For lint/type errors, run `/fix-ci` first.

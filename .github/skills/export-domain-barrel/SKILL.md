@@ -1,14 +1,8 @@
 ---
-agent: "domain-specialist"
+name: export-domain-barrel
 description: Export a domain module from the src/domain/index.ts barrel. Audits unexported functions and wires them.
-tools:
-  - grep_search
-  - read_file
-  - replace_string_in_file
-  - runTests
-  - get_errors
+disable-model-invocation: true
 ---
-
 # 📦 Export Domain Function to Barrel
 
 Export the function(s) specified by the user from `src/domain/index.ts`.

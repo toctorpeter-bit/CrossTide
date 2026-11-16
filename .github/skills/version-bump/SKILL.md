@@ -1,10 +1,8 @@
 ---
-agent: "agent"
-model: "Claude Sonnet 4.5 (copilot)"
+name: version-bump
 description: "Bump the project version consistently across package.json, CHANGELOG.md, README.md, .github/AGENTS.md, copilot-instructions.md, docs/ARCHITECTURE.md, and docs/ROADMAP.md."
-tools: ["read_file", "replace_string_in_file", "grep_search", "run_in_terminal"]
+disable-model-invocation: true
 ---
-
 # 🔢 Version Bump — CrossTide
 
 Bump the version from the current value to a new semver target.

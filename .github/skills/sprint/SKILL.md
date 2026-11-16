@@ -1,17 +1,8 @@
 ---
-agent: "agent"
-description: Plan and execute a development sprint — implement one feature from ROADMAP.md, commit with conventional commit, and optionally create a GitHub release.
-tools:
-  - read_file
-  - grep_search
-  - file_search
-  - create_file
-  - replace_string_in_file
-  - run_in_terminal
-  - runTests
-  - get_errors
+name: sprint
+description: "Plan and execute a development sprint — implement one feature from ROADMAP.md, commit with conventional commit, and optionally create a GitHub release."
+disable-model-invocation: true
 ---
-
 # 🏃 Development Sprint
 
 Implement a single roadmap feature, pass all quality gates, and commit.

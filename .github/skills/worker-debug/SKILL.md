@@ -1,10 +1,8 @@
 ---
-agent: "api-integrator"
-model: "Claude Sonnet 4.5 (copilot)"
+name: worker-debug
 description: "Debug a broken Cloudflare Worker route: fetch failures, Valibot validation errors, KV read/write, rate-limit issues, envelope shape mismatches."
-tools: ["read_file", "grep_search", "replace_string_in_file", "run_in_terminal"]
+disable-model-invocation: true
 ---
-
 # 🐛 Worker Route Debug — CrossTide
 
 Diagnose and fix a failing Cloudflare Worker route. Follow this checklist in order.

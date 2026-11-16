@@ -1,0 +1,56 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "tools": ["*"]
+    },
+    "cloudflare": {
+      "type": "http",
+      "url": "https://mcp.cloudflare.com/mcp",
+      "tools": ["*"]
+    },
+    "cloudflare-docs": {
+      "type": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp",
+      "tools": ["*"]
+    },
+    "cloudflare-observability": {
+      "type": "http",
+      "url": "https://observability.mcp.cloudflare.com/mcp",
+      "tools": ["*"]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx.cmd",
+      "args": ["--yes", "@upstash/context7-mcp"],
+      "tools": ["*"],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}",
+        "NODE_USE_ENV_PROXY": "1",
+        "HTTP_PROXY": "${HTTP_PROXY}",
+        "HTTPS_PROXY": "${HTTPS_PROXY}",
+        "NO_PROXY": "${NO_PROXY}"
+      }
+    },
+    "crosstide": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/workspaces/CrossTide/mcp-server/dist/index.js"],
+      "tools": ["*"],
+      "env": {
+        "CROSSTIDE_API_URL": "http://localhost:8787"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/workspaces/CrossTide/node_modules/@playwright/mcp/cli.js",
+        "--isolated",
+        "--headless"
+      ],
+      "tools": ["*"]
+    }
+  }
+}

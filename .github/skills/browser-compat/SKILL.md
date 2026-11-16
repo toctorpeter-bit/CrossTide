@@ -1,9 +1,8 @@
 ---
+name: browser-compat
 description: "Add or fix a browser compatibility test — Vitest browser-mode or Playwright E2E"
-agent: "compat-specialist"
-tools: ["read_file", "grep_search", "create_file", "replace_string_in_file", "runTests", "get_errors"]
+disable-model-invocation: true
 ---
-
 # 🌐 Add Browser Compatibility Test
 
 READ FIRST: `.github/instructions/browser.instructions.md`
