@@ -72,11 +72,9 @@ export default defineConfig({
         agent: proxyAgent,
       },
       "/api/worker": {
-        target: "https://worker.crosstide.pages.dev",
+        target: "http://127.0.0.1:8787",
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/api\/worker/, ""),
-        secure: !proxyAgent,
-        agent: proxyAgent,
       },
     },
     headers: {

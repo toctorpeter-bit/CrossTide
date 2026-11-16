@@ -106,7 +106,16 @@ unfinished bar; 4h candles are built from complete hourly groups within each UTC
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+```
+
+Start the local Worker and Vite in separate terminals from the repository root:
+
+```bash
+# Terminal 1 — Worker API at http://localhost:8787
+./node_modules/.bin/wrangler dev --config worker/wrangler.toml --local --ip 127.0.0.1 --port 8787
+
+# Terminal 2 — app at http://localhost:5173
+npm run dev
 ```
 
 No provider key is required for local development. Optional server-side fallbacks can be enabled
